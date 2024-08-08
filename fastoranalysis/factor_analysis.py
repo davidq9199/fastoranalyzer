@@ -22,10 +22,16 @@ class FactorAnalysis:
     """
 
     def __init__(self, n_factors, rotation=None):
+        if not isinstance(n_factors, (int, np.integer)) or n_factors <= 0:
+            raise ValueError("n_factors must be a positive integer")
+        if rotation not in [None, 'varimax']:
+            raise ValueError("rotation must be either None or 'varimax'")
+        
         self.n_factors = n_factors
         self.rotation = rotation
         self.loadings_ = None
         self.uniquenesses_ = None
+
 
     def fit(self, X):
         """
@@ -42,6 +48,15 @@ class FactorAnalysis:
             Fitted estimator.
         
         """
+        X = np.asarray(X)
+        if X.ndim != 2:
+            raise ValueError("Expected 2D array, got %dD array instead" % X.ndim)
+        n_samples, n_features = X.shape
+        if n_features < self.n_factors:
+            raise ValueError("n_features=%d must be >= n_factors=%d" % 
+                             (n_features, self.n_factors))
+
+
         n_samples, n_features = X.shape
         corr = np.corrcoef(X, rowvar=False)
         
@@ -80,7 +95,13 @@ class FactorAnalysis:
 
         """
         if self.loadings_ is None:
-            raise ValueError("FactorAnalysis must be fitted before transform")
+            raise ValueError("FactorAnalysis model is not fitted yet.")
+        
+        X = np.asarray(X)
+        if X.shape[1] != self.loadings_.shape[0]:
+            raise ValueError("X has %d features, but FactorAnalysis is expecting %d features" %
+                             (X.shape[1], self.loadings_.shape[0]))
+        
         return X @ self.loadings_
     
     def _varimax_rotation(self, loadings, max_iter=1000, tol=1e-5):

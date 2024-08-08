@@ -29,3 +29,12 @@ def test_factor_analysis_transform_before_fit(sample_data):
     fa = FactorAnalysis(n_factors=2)
     with pytest.raises(ValueError):
         fa.transform(sample_data)
+
+def test_factor_analysis_with_varimax_rotation(sample_data):
+    fa = FactorAnalysis(n_factors=2, rotation='varimax')
+    fa.fit(sample_data)
+    assert fa.loadings_.shape == (5, 2)
+    
+    fa_unrotated = FactorAnalysis(n_factors=2, rotation=None)
+    fa_unrotated.fit(sample_data)
+    assert not np.allclose(fa.loadings_, fa_unrotated.loadings_)

@@ -26,12 +26,42 @@ def test_factor_analysis_invalid_init():
         FactorAnalysis(n_factors=-1)
     with pytest.raises(ValueError, match="rotation must be 'varimax' or None"):
         FactorAnalysis(n_factors=2, rotation='invalid_rotation')
+    with pytest.raises(ValueError, match="scores must be 'regression' or 'bartlett'"):
+        FactorAnalysis(n_factors=2, scores='invalid_method')
 
 def test_factor_analysis_score(sample_data):
     fa = FactorAnalysis(n_factors=2)
     fa.fit(sample_data)
     scores = fa.score(sample_data)
     assert scores.shape == (100, 2)
+
+def test_factor_analysis_scoring_methods(sample_data):
+    fa_regression = FactorAnalysis(n_factors=2, scores='regression')
+    fa_regression.fit(sample_data)
+    scores_regression = fa_regression.score(sample_data)
+
+    fa_bartlett = FactorAnalysis(n_factors=2, scores='bartlett')
+    fa_bartlett.fit(sample_data)
+    scores_bartlett = fa_bartlett.score(sample_data)
+
+    assert scores_regression.shape == (100, 2)
+    assert scores_bartlett.shape == (100, 2)
+    assert not np.allclose(scores_regression, scores_bartlett)
+
+def test_factor_analysis_control_parameter(sample_data):
+    fa_default = FactorAnalysis(n_factors=2)
+    fa_default.fit(sample_data)
+
+    fa_custom = FactorAnalysis(n_factors=2, control={'maxiter': 1})
+    fa_custom.fit(sample_data)
+
+    assert fa_custom.n_iter_ <= 1
+    assert fa_default.n_iter_ > fa_custom.n_iter_
+
+    fa_more_iter = FactorAnalysis(n_factors=2, control={'maxiter': 100})
+    fa_more_iter.fit(sample_data)
+    
+    assert fa_more_iter.n_iter_ > fa_custom.n_iter_
 
 def test_factor_analysis_invalid_init():
     with pytest.raises(ValueError):

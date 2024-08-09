@@ -105,6 +105,33 @@ class FactorAnalysis:
         
         return X @ self.loadings_
     
+    def score(self, X):
+        """
+        Compute factor scores using the fitted model.
+
+        Parameters
+        ----------
+        X : array-like of shape (n_samples, n_features)
+            Data to compute scores for.
+
+        Returns
+        -------
+        scores : ndarray of shape (n_samples, n_factors)
+            Factor scores.
+
+        """
+        if self.loadings_ is None:
+            raise ValueError("FactorAnalysis model is not fitted yet.")
+
+        X = np.asarray(X)
+        if X.shape[1] != self.loadings_.shape[0]:
+            raise ValueError("X has %d features, but FactorAnalysis is expecting %d features" %
+                             (X.shape[1], self.loadings_.shape[0]))
+
+        corr = np.corrcoef(X, rowvar=False)
+        inv_corr = linalg.inv(corr)
+        return X @ inv_corr @ self.loadings_
+    
     def _varimax_rotation(self, loadings, max_iter=1000, tol=1e-5):
         """Perform varimax rotation on loadings."""
         n_factors = loadings.shape[1]

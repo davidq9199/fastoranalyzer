@@ -147,4 +147,4 @@ class FactorAnalysis:
             if var - old_var < tol:
                 break
 
-        return np.dot(loadings, rotation_matrix)
+        return loadings @ rotation_matrix

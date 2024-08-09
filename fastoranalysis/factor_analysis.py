@@ -1,16 +1,20 @@
 import numpy as np
-from scipy import linalg, optimize
+from scipy import linalg, stats, optimize
 
 class FactorAnalysis:
     """
     Factor Analysis using Maximum Likelihood Estimation.
+
+    This class implements factor analysis, a statistical method used to describe
+    variability among observed, correlated variables in terms of a potentially
+    lower number of unobserved variables called factors.
 
     Parameters
     ----------
     n_factors : int
         Number of factors to extract.
     rotation : {'varimax', None}, default=None
-        Method for rotation of factors.
+        Method for rotation of factors. If None, no rotation is performed.
 
     Attributes
     ----------
@@ -18,20 +22,60 @@ class FactorAnalysis:
         Factor loadings matrix.
     uniquenesses_ : ndarray of shape (n_features,)
         Uniquenesses of each feature.
+    n_iter_ : int
+        Number of iterations in the optimization.
+    loglike_ : float
+        Log-likelihood of the fitted model.
+    chi_square_ : float
+        Chi-square statistic for the goodness of fit.
+    dof_ : int
+        Degrees of freedom for the chi-square test.
+    p_value_ : float
+        P-value for the chi-square test.
+
+    Methods
+    -------
+    fit(X)
+        Fit the factor analysis model.
+    transform(X)
+        Apply dimensionality reduction to X using the fitted model.
+    score(X)
+        Compute factor scores using the fitted model.
+
+    Examples
+    --------
+    >>> import numpy as np
+    >>> from fastoranalysis import FactorAnalysis
+    >>> X = np.random.rand(100, 5)
+    >>> fa = FactorAnalysis(n_factors=2)
+    >>> fa.fit(X)
+    >>> transformed_X = fa.transform(X)
+    >>> scores = fa.score(X)
+
+    Notes
+    -----
+    The factor analysis model is:
+    x = Λf + e
+    where x is a p-element vector, Λ is a p × k matrix of loadings,
+    f is a k-element vector of scores, and e is a p-element vector of errors.
 
     """
 
     def __init__(self, n_factors, rotation=None):
-        if not isinstance(n_factors, (int, np.integer)) or n_factors <= 0:
+        if not isinstance(n_factors, int) or n_factors <= 0:
             raise ValueError("n_factors must be a positive integer")
-        if rotation not in [None, 'varimax']:
-            raise ValueError("rotation must be either None or 'varimax'")
+        if rotation not in ['varimax', None]:
+            raise ValueError("rotation must be 'varimax' or None")
         
         self.n_factors = n_factors
         self.rotation = rotation
         self.loadings_ = None
         self.uniquenesses_ = None
-
+        self.n_iter_ = None
+        self.loglike_ = None
+        self.chi_square_ = None
+        self.dof_ = None
+        self.p_value_ = None
 
     def fit(self, X):
         """
@@ -49,17 +93,13 @@ class FactorAnalysis:
         
         """
         X = np.asarray(X)
-        if X.ndim != 2:
-            raise ValueError("Expected 2D array, got %dD array instead" % X.ndim)
         n_samples, n_features = X.shape
+
         if n_features < self.n_factors:
-            raise ValueError("n_features=%d must be >= n_factors=%d" % 
-                             (n_features, self.n_factors))
+            raise ValueError("n_features must be at least n_factors")
 
-
-        n_samples, n_features = X.shape
         corr = np.corrcoef(X, rowvar=False)
-        
+
         def objective(uniquenesses):
             diag_unique = np.diag(uniquenesses)
             _, s, Vt = linalg.svd(corr - diag_unique)
@@ -68,7 +108,7 @@ class FactorAnalysis:
 
         initial_uniquenesses = np.ones(n_features)
         res = optimize.minimize(objective, initial_uniquenesses, method='L-BFGS-B', bounds=[(0.005, 1)] * n_features)
-        
+
         self.uniquenesses_ = res.x
         diag_unique = np.diag(self.uniquenesses_)
         _, s, Vt = linalg.svd(corr - diag_unique)
@@ -76,7 +116,13 @@ class FactorAnalysis:
 
         if self.rotation == 'varimax':
             self.loadings_ = self._varimax_rotation(self.loadings_)
-        
+
+        self.n_iter_ = res.nit
+        self.loglike_ = -res.fun
+        self.dof_ = int(((n_features - self.n_factors)**2 - n_features - self.n_factors) / 2)
+        self.chi_square_ = (n_samples - 1 - (2 * n_features + 5) / 6 - (2 * self.n_factors) / 3) * res.fun
+        self.p_value_ = 1 - stats.chi2.cdf(self.chi_square_, self.dof_)
+
         return self
         
     def transform(self, X):
@@ -104,6 +150,33 @@ class FactorAnalysis:
         
         return X @ self.loadings_
     
+    def score(self, X):
+        """
+        Compute factor scores using the fitted model.
+
+        Parameters
+        ----------
+        X : array-like of shape (n_samples, n_features)
+            Data to compute scores for.
+
+        Returns
+        -------
+        scores : ndarray of shape (n_samples, n_factors)
+            Factor scores.
+
+        """
+        if self.loadings_ is None:
+            raise ValueError("FactorAnalysis model is not fitted yet.")
+
+        X = np.asarray(X)
+        if X.shape[1] != self.loadings_.shape[0]:
+            raise ValueError("X has %d features, but FactorAnalysis is expecting %d features" %
+                             (X.shape[1], self.loadings_.shape[0]))
+
+        corr = np.corrcoef(X, rowvar=False)
+        inv_corr = linalg.inv(corr)
+        return X @ inv_corr @ self.loadings_
+    
     def _varimax_rotation(self, loadings, max_iter=1000, tol=1e-5):
         """Perform varimax rotation on loadings."""
         n_factors = loadings.shape[1]
@@ -119,4 +192,4 @@ class FactorAnalysis:
             if var - old_var < tol:
                 break
 
-        return np.dot(loadings, rotation_matrix)
+        return loadings @ rotation_matrix

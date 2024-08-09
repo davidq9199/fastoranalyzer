@@ -62,6 +62,11 @@ class FactorAnalysis:
     """
 
     def __init__(self, n_factors, rotation=None):
+        if not isinstance(n_factors, int) or n_factors <= 0:
+            raise ValueError("n_factors must be a positive integer")
+        if rotation not in ['varimax', None]:
+            raise ValueError("rotation must be 'varimax' or None")
+        
         self.n_factors = n_factors
         self.rotation = rotation
         self.loadings_ = None
@@ -114,7 +119,7 @@ class FactorAnalysis:
 
         self.n_iter_ = res.nit
         self.loglike_ = -res.fun
-        self.dof_ = ((n_features - self.n_factors)**2 - n_features - self.n_factors) / 2
+        self.dof_ = int(((n_features - self.n_factors)**2 - n_features - self.n_factors) / 2)
         self.chi_square_ = (n_samples - 1 - (2 * n_features + 5) / 6 - (2 * self.n_factors) / 3) * res.fun
         self.p_value_ = 1 - stats.chi2.cdf(self.chi_square_, self.dof_)
 

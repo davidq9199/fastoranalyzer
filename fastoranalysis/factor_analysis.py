@@ -151,10 +151,9 @@ class FactorAnalysis:
         
         X = np.asarray(X)
         if X.shape[1] != self.loadings_.shape[0]:
-            raise ValueError("X has %d features, but FactorAnalysis is expecting %d features" %
-                             (X.shape[1], self.loadings_.shape[0]))
+            raise ValueError(f"X has {X.shape[1]} features, but FactorAnalysis is expecting {self.loadings_.shape[0]} features")
         
-        return X @ self.loadings_
+        return self.score(X)
     
     def score(self, X):
         """
@@ -182,6 +181,20 @@ class FactorAnalysis:
         corr = np.corrcoef(X, rowvar=False)
         inv_corr = linalg.inv(corr)
         return X @ inv_corr @ self.loadings_
+    
+    def _regression_scores(self, X):
+        """Compute regression scores."""
+        corr = np.corrcoef(X, rowvar=False)
+        inv_corr = linalg.inv(corr)
+        return X @ inv_corr @ self.loadings_
+
+    def _bartlett_scores(self, X):
+        """Compute Bartlett's scores."""
+        X_centered = X - X.mean(axis=0)
+        U = np.diag(1 / self.uniquenesses_)
+        M = self.loadings_.T @ U @ self.loadings_
+        M_inv = linalg.inv(M)
+        return X_centered @ U @ self.loadings_ @ M_inv
     
     def _varimax_rotation(self, loadings, max_iter=1000, tol=1e-5):
         """Perform varimax rotation on loadings."""

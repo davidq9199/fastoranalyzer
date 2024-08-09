@@ -1,5 +1,5 @@
 import numpy as np
-from scipy import linalg, optimize
+from scipy import linalg, stats, optimize
 
 class FactorAnalysis:
     """
@@ -22,16 +22,15 @@ class FactorAnalysis:
     """
 
     def __init__(self, n_factors, rotation=None):
-        if not isinstance(n_factors, (int, np.integer)) or n_factors <= 0:
-            raise ValueError("n_factors must be a positive integer")
-        if rotation not in [None, 'varimax']:
-            raise ValueError("rotation must be either None or 'varimax'")
-        
         self.n_factors = n_factors
         self.rotation = rotation
         self.loadings_ = None
         self.uniquenesses_ = None
-
+        self.n_iter_ = None
+        self.loglike_ = None
+        self.chi_square_ = None
+        self.dof_ = None
+        self.p_value_ = None
 
     def fit(self, X):
         """
@@ -49,17 +48,13 @@ class FactorAnalysis:
         
         """
         X = np.asarray(X)
-        if X.ndim != 2:
-            raise ValueError("Expected 2D array, got %dD array instead" % X.ndim)
         n_samples, n_features = X.shape
+
         if n_features < self.n_factors:
-            raise ValueError("n_features=%d must be >= n_factors=%d" % 
-                             (n_features, self.n_factors))
+            raise ValueError("n_features must be at least n_factors")
 
-
-        n_samples, n_features = X.shape
         corr = np.corrcoef(X, rowvar=False)
-        
+
         def objective(uniquenesses):
             diag_unique = np.diag(uniquenesses)
             _, s, Vt = linalg.svd(corr - diag_unique)
@@ -68,7 +63,7 @@ class FactorAnalysis:
 
         initial_uniquenesses = np.ones(n_features)
         res = optimize.minimize(objective, initial_uniquenesses, method='L-BFGS-B', bounds=[(0.005, 1)] * n_features)
-        
+
         self.uniquenesses_ = res.x
         diag_unique = np.diag(self.uniquenesses_)
         _, s, Vt = linalg.svd(corr - diag_unique)
@@ -76,7 +71,13 @@ class FactorAnalysis:
 
         if self.rotation == 'varimax':
             self.loadings_ = self._varimax_rotation(self.loadings_)
-        
+
+        self.n_iter_ = res.nit
+        self.loglike_ = -res.fun
+        self.dof_ = ((n_features - self.n_factors)**2 - n_features - self.n_factors) / 2
+        self.chi_square_ = (n_samples - 1 - (2 * n_features + 5) / 6 - (2 * self.n_factors) / 3) * res.fun
+        self.p_value_ = 1 - stats.chi2.cdf(self.chi_square_, self.dof_)
+
         return self
         
     def transform(self, X):

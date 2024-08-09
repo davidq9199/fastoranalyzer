@@ -5,12 +5,16 @@ class FactorAnalysis:
     """
     Factor Analysis using Maximum Likelihood Estimation.
 
+    This class implements factor analysis, a statistical method used to describe
+    variability among observed, correlated variables in terms of a potentially
+    lower number of unobserved variables called factors.
+
     Parameters
     ----------
     n_factors : int
         Number of factors to extract.
     rotation : {'varimax', None}, default=None
-        Method for rotation of factors.
+        Method for rotation of factors. If None, no rotation is performed.
 
     Attributes
     ----------
@@ -18,6 +22,42 @@ class FactorAnalysis:
         Factor loadings matrix.
     uniquenesses_ : ndarray of shape (n_features,)
         Uniquenesses of each feature.
+    n_iter_ : int
+        Number of iterations in the optimization.
+    loglike_ : float
+        Log-likelihood of the fitted model.
+    chi_square_ : float
+        Chi-square statistic for the goodness of fit.
+    dof_ : int
+        Degrees of freedom for the chi-square test.
+    p_value_ : float
+        P-value for the chi-square test.
+
+    Methods
+    -------
+    fit(X)
+        Fit the factor analysis model.
+    transform(X)
+        Apply dimensionality reduction to X using the fitted model.
+    score(X)
+        Compute factor scores using the fitted model.
+
+    Examples
+    --------
+    >>> import numpy as np
+    >>> from fastoranalysis import FactorAnalysis
+    >>> X = np.random.rand(100, 5)
+    >>> fa = FactorAnalysis(n_factors=2)
+    >>> fa.fit(X)
+    >>> transformed_X = fa.transform(X)
+    >>> scores = fa.score(X)
+
+    Notes
+    -----
+    The factor analysis model is:
+    x = Λf + e
+    where x is a p-element vector, Λ is a p × k matrix of loadings,
+    f is a k-element vector of scores, and e is a p-element vector of errors.
 
     """
 

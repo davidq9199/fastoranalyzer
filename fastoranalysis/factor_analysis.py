@@ -175,12 +175,12 @@ class FactorAnalysis:
 
         X = np.asarray(X)
         if X.shape[1] != self.loadings_.shape[0]:
-            raise ValueError("X has %d features, but FactorAnalysis is expecting %d features" %
-                             (X.shape[1], self.loadings_.shape[0]))
+            raise ValueError(f"X has {X.shape[1]} features, but FactorAnalysis is expecting {self.loadings_.shape[0]} features")
 
-        corr = np.corrcoef(X, rowvar=False)
-        inv_corr = linalg.inv(corr)
-        return X @ inv_corr @ self.loadings_
+        if self.scores_method == 'regression':
+            return self._regression_scores(X)
+        elif self.scores_method == 'bartlett':
+            return self._bartlett_scores(X)
     
     def _regression_scores(self, X):
         """Compute regression scores."""

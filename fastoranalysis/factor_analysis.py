@@ -61,14 +61,18 @@ class FactorAnalysis:
 
     """
 
-    def __init__(self, n_factors, rotation=None):
+    def __init__(self, n_factors, rotation=None, scores='regression', control=None):
         if not isinstance(n_factors, int) or n_factors <= 0:
             raise ValueError("n_factors must be a positive integer")
         if rotation not in ['varimax', None]:
             raise ValueError("rotation must be 'varimax' or None")
+        if scores not in ['regression', 'bartlett']:
+            raise ValueError("scores must be 'regression' or 'bartlett'")
         
         self.n_factors = n_factors
         self.rotation = rotation
+        self.scores_method = scores
+        self.control = control or {}
         self.loadings_ = None
         self.uniquenesses_ = None
         self.n_iter_ = None
@@ -107,7 +111,9 @@ class FactorAnalysis:
             return -np.sum(np.log(s[self.n_factors:])) + np.sum(np.log(uniquenesses))
 
         initial_uniquenesses = np.ones(n_features)
-        res = optimize.minimize(objective, initial_uniquenesses, method='L-BFGS-B', bounds=[(0.005, 1)] * n_features)
+        res = optimize.minimize(objective, initial_uniquenesses, method='L-BFGS-B', 
+                                bounds=[(0.005, 1)] * n_features, 
+                                options=self.control)
 
         self.uniquenesses_ = res.x
         diag_unique = np.diag(self.uniquenesses_)

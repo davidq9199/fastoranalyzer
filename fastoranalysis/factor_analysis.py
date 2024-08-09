@@ -111,9 +111,13 @@ class FactorAnalysis:
             return -np.sum(np.log(s[self.n_factors:])) + np.sum(np.log(uniquenesses))
 
         initial_uniquenesses = np.ones(n_features)
+        
+        default_options = {'maxiter': 1000}
+        options = {**default_options, **self.control}
+        
         res = optimize.minimize(objective, initial_uniquenesses, method='L-BFGS-B', 
                                 bounds=[(0.005, 1)] * n_features, 
-                                options=self.control)
+                                options=options)
 
         self.uniquenesses_ = res.x
         diag_unique = np.diag(self.uniquenesses_)

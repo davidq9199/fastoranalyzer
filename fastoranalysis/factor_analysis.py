@@ -212,4 +212,22 @@ class FactorAnalysis:
             if var - old_var < tol:
                 break
 
-        return loadings @ rotation_matrix
+        rotated_loadings = loadings @ rotation_matrix
+        return rotated_loadings, rotation_matrix
+    
+    def _promax_rotation(self, loadings, power=4):
+        """Perform promax rotation on loadings."""
+        X, rotation = self._varimax_rotation(loadings)
+        
+        h2 = np.sum(X**2, axis=1)
+        X = X / np.sqrt(h2[:, None])
+        P = X ** power
+        U = linalg.inv(X.T @ X) @ (X.T @ P)
+        
+        d = np.diag(np.sqrt(np.sum(U**2, axis=0)))
+        U = U @ linalg.inv(d)
+        X = X @ U
+        
+        rotation = rotation @ U
+        
+        return X, rotation

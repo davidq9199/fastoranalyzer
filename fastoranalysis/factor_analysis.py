@@ -123,12 +123,24 @@ class FactorAnalysis:
         self.uniquenesses_ = res.x
         diag_unique = np.diag(self.uniquenesses_)
         _, s, Vt = linalg.svd(corr - diag_unique)
-        self.loadings_ = Vt[:self.n_factors, :].T * np.sqrt(s[:self.n_factors])
+        
+        self.unrotated_loadings_ = Vt[:self.n_factors, :].T * np.sqrt(s[:self.n_factors])
+        self.loadings_ = self.unrotated_loadings_.copy()
 
         if self.rotation == 'varimax':
             self.loadings_, self.rotation_matrix_ = self._varimax_rotation(self.loadings_)
+            self.scaling_factors_ = np.ones(self.loadings_.shape[0])
         elif self.rotation == 'promax':
-            self.loadings_, self.rotation_matrix_ = self._promax_rotation(self.loadings_)
+            self.loadings_, self.rotation_matrix_, self.scaling_factors_ = self._promax_rotation(self.loadings_)
+        else:
+            self.rotation_matrix_ = np.eye(self.n_factors)
+            self.scaling_factors_ = np.ones(self.loadings_.shape[0])
+
+        self.n_iter_ = res.nit
+        self.loglike_ = -res.fun
+        self.dof_ = int(((n_features - self.n_factors)**2 - n_features - self.n_factors) / 2)
+        self.chi_square_ = (n_samples - 1 - (2 * n_features + 5) / 6 - (2 * self.n_factors) / 3) * res.fun
+        self.p_value_ = 1 - stats.chi2.cdf(self.chi_square_, self.dof_)
 
         return self
         
@@ -205,9 +217,9 @@ class FactorAnalysis:
 
         for _ in range(max_iter):
             old_var = var
-            comp = np.dot(loadings, rotation_matrix)
-            u, s, v = linalg.svd(np.dot(loadings.T, comp**3 - (1/3) * np.dot(comp, np.diag(np.sum(comp**2, axis=0)))))
-            rotation_matrix = np.dot(u, v)
+            comp = loadings @ rotation_matrix
+            u, s, v = linalg.svd(loadings.T @ (comp**3 - (1/3) * comp @ np.diag(np.sum(comp**2, axis=0))))
+            rotation_matrix = u @ v
             var = np.sum(s)
             if var - old_var < tol:
                 break
@@ -220,14 +232,41 @@ class FactorAnalysis:
         X, rotation = self._varimax_rotation(loadings)
         
         h2 = np.sum(X**2, axis=1)
-        X = X / np.sqrt(h2[:, None])
-        P = X ** power
-        U = linalg.inv(X.T @ X) @ (X.T @ P)
+        X_normalized = X / np.sqrt(h2[:, None])
         
+        P = X_normalized ** power
+        U = linalg.inv(X_normalized.T @ X_normalized) @ (X_normalized.T @ P)
         d = np.diag(np.sqrt(np.sum(U**2, axis=0)))
         U = U @ linalg.inv(d)
-        X = X @ U
         
-        rotation = rotation @ U
+        rotated_loadings = loadings @ rotation @ U
         
-        return X, rotation
+        h2_rotated = np.sum(rotated_loadings**2, axis=1)
+        scaling_factors = np.sqrt(np.sum(loadings**2, axis=1) / h2_rotated)
+        rotated_loadings *= scaling_factors[:, None]
+        
+        promax_rotation = rotation @ U
+        
+        return rotated_loadings, promax_rotation, scaling_factors
+
+    def get_factor_variance(self):
+        """
+        Compute variance explained by each factor.
+
+        Returns
+        -------
+        variance : ndarray of shape (3, n_factors)
+            Array with variance, proportion of variance and cumulative proportion of variance explained.
+        
+        """
+        if self.loadings_ is None:
+            raise ValueError("FactorAnalysis model is not fitted yet.")
+
+        loadings = self.loadings_
+
+        variance = np.sum(loadings**2, axis=0)
+        total_variance = np.sum(variance)
+        proportion = variance / total_variance
+        cumulative = np.cumsum(proportion)
+
+        return np.vstack((variance, proportion, cumulative))

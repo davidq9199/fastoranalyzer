@@ -64,8 +64,8 @@ class FactorAnalysis:
     def __init__(self, n_factors, rotation=None, scores='regression', control=None):
         if not isinstance(n_factors, int) or n_factors <= 0:
             raise ValueError("n_factors must be a positive integer")
-        if rotation not in ['varimax', None]:
-            raise ValueError("rotation must be 'varimax' or None")
+        if rotation not in ['varimax', 'promax', None]:
+            raise ValueError("rotation must be 'varimax', 'promax', or None")
         if scores not in ['regression', 'bartlett']:
             raise ValueError("scores must be 'regression' or 'bartlett'")
         
@@ -80,6 +80,7 @@ class FactorAnalysis:
         self.chi_square_ = None
         self.dof_ = None
         self.p_value_ = None
+        self.rotation_matrix_ = None
 
     def fit(self, X):
         """
@@ -125,13 +126,9 @@ class FactorAnalysis:
         self.loadings_ = Vt[:self.n_factors, :].T * np.sqrt(s[:self.n_factors])
 
         if self.rotation == 'varimax':
-            self.loadings_ = self._varimax_rotation(self.loadings_)
-
-        self.n_iter_ = res.nit
-        self.loglike_ = -res.fun
-        self.dof_ = int(((n_features - self.n_factors)**2 - n_features - self.n_factors) / 2)
-        self.chi_square_ = (n_samples - 1 - (2 * n_features + 5) / 6 - (2 * self.n_factors) / 3) * res.fun
-        self.p_value_ = 1 - stats.chi2.cdf(self.chi_square_, self.dof_)
+            self.loadings_, self.rotation_matrix_ = self._varimax_rotation(self.loadings_)
+        elif self.rotation == 'promax':
+            self.loadings_, self.rotation_matrix_ = self._promax_rotation(self.loadings_)
 
         return self
         

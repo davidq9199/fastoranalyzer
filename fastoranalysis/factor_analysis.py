@@ -281,3 +281,53 @@ class FactorAnalysis:
         cumulative = np.cumsum(proportion)
 
         return np.vstack((variance, proportion, cumulative))
+    
+    def _format_matrix(self, matrix, digits=3):
+        """Format a matrix for printing."""
+        return np.array2string(matrix, precision=digits, suppress_small=True)  
+          
+    def _format_loadings(self, cutoff=0.1, digits=2):
+        """Format loadings matrix for printing."""
+        loadings = self.loadings_.copy()
+        loadings[np.abs(loadings) < cutoff] = 0.0
+        formatted = np.array2string(loadings, precision=digits, suppress_small=True, floatmode='fixed')
+        formatted = formatted.replace("0.00", " 0.0")
+        return formatted
+
+    def __str__(self):
+        """Return a string representation of the FactorAnalysis results."""
+        if self.loadings_ is None:
+            return "FactorAnalysis model is not fitted yet."
+        
+        output = []
+        output.append(f"Call:\n{self.call_}\n")
+        
+        output.append("Uniquenesses:")
+        uniquenesses_str = " ".join([f"{u:.3f}" for u in self.uniquenesses_])
+        output.append(uniquenesses_str + "\n")
+        
+        output.append("Loadings:")
+        loadings_str = self._format_loadings()
+        output.append(loadings_str + "\n")
+        
+        ss_loadings = np.sum(self.loadings_**2, axis=0)
+        output.append("               SS loadings    Proportion Var")
+        for i, ss in enumerate(ss_loadings):
+            prop_var = ss / self.loadings_.shape[0]
+            output.append(f"Factor {i+1:<8} {ss:.3f}           {prop_var:.3f}")
+        
+        if self.rotation is not None and self.rotmat_ is not None:
+            output.append("\nFactor Correlations:")
+            corr = self.rotmat_ @ self.rotmat_.T
+            corr_str = self._format_matrix(corr)
+            output.append(corr_str)
+        
+        output.append(f"\nThe degrees of freedom for the model is {self.dof_}")
+        if hasattr(self, 'STATISTIC') and hasattr(self, 'PVAL'):
+            output.append(f"Test of the hypothesis that {self.n_factors} factors are sufficient.")
+            output.append(f"The chi square statistic is {self.STATISTIC:.2f} on {self.dof_} degrees of freedom.")
+            output.append(f"The p-value is {self.PVAL:.3g}")
+        else:
+            output.append(f"The fit was {self.criteria_['objective']:.4f}")
+        
+        return "\n".join(output)

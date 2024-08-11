@@ -4,7 +4,7 @@ from fastoranalysis import FactorAnalysis
 
 @pytest.fixture
 def sample_data():
-    np.random.seed(42)
+    np.random.seed(58)
     return np.random.rand(100, 5)
 
 @pytest.fixture
@@ -12,6 +12,10 @@ def fitted_fa(sample_data):
     fa = FactorAnalysis(n_factors=2, rotation='varimax')
     fa.fit(sample_data)
     return fa
+
+@pytest.fixture
+def sample_covmat(sample_data):
+    return np.cov(sample_data, rowvar=False)
 
 def test_factor_analysis_fit_attributes(sample_data):
     fa = FactorAnalysis(n_factors=2)
@@ -40,6 +44,49 @@ def test_factor_analysis_score(sample_data):
     fa.fit(sample_data)
     scores = fa.score(sample_data)
     assert scores.shape == (100, 2)
+
+def test_factor_analysis_raw_data_input(sample_data):
+    fa = FactorAnalysis(n_factors=2)
+    fa.fit(X=sample_data)
+    assert fa.loadings_.shape == (5, 2)
+    assert fa.uniquenesses_.shape == (5,)
+    assert fa.n_obs_ == 100
+    assert fa.correlation_.shape == (5, 5)
+
+def test_factor_analysis_covmat_input(sample_covmat):
+    fa = FactorAnalysis(n_factors=2)
+    fa.fit(covmat=sample_covmat, n_obs=100)
+    assert fa.loadings_.shape == (5, 2)
+    assert fa.uniquenesses_.shape == (5,)
+    assert fa.n_obs_ == 100
+    assert fa.correlation_.shape == (5, 5)
+
+def test_factor_analysis_covmat_input_no_n_obs(sample_covmat):
+    fa = FactorAnalysis(n_factors=2)
+    with pytest.raises(ValueError, match="n_obs must be provided when using a covariance matrix"):
+        fa.fit(covmat=sample_covmat)
+
+def test_factor_analysis_no_input():
+    fa = FactorAnalysis(n_factors=2)
+    with pytest.raises(ValueError, match="Either X or covmat must be provided"):
+        fa.fit()
+
+def test_factor_analysis_both_inputs(sample_data, sample_covmat):
+    fa = FactorAnalysis(n_factors=2)
+    fa.fit(X=sample_data, covmat=sample_covmat, n_obs=100)
+    # prioritize X over covmat
+    assert fa.n_obs_ == 100
+    assert np.allclose(fa.correlation_, np.corrcoef(sample_data, rowvar=False))
+
+def test_factor_analysis_too_many_factors(sample_data):
+    fa = FactorAnalysis(n_factors=10) 
+    with pytest.raises(ValueError, match="n_features must be at least n_factors"):
+        fa.fit(X=sample_data)
+
+def test_factor_analysis_no_scores_with_covmat(sample_covmat):
+    fa = FactorAnalysis(n_factors=2, scores='regression')
+    fa.fit(covmat=sample_covmat, n_obs=100)
+    assert not hasattr(fa, 'scores_')
 
 def test_factor_analysis_scoring_methods(sample_data):
     fa_regression = FactorAnalysis(n_factors=2, scores='regression')
@@ -90,7 +137,7 @@ def test_factor_analysis_fit_invalid_input():
 
 def test_factor_analysis_transform(sample_data):
     fa = FactorAnalysis(n_factors=2)
-    fa.fit(sample_data)
+    fa.fit(X=sample_data)
     transformed = fa.transform(sample_data)
     assert transformed.shape == (100, 2)
 
@@ -120,6 +167,15 @@ def test_factor_analysis_promax_rotation(sample_data):
     fa.fit(sample_data)
     assert fa.loadings_.shape == (5, 2)
     assert fa.rotmat_.shape == (2, 2)
+
+def test_factor_analysis_rotation_options(sample_data):
+    for rotation in [None, 'varimax', 'promax']:
+        fa = FactorAnalysis(n_factors=2, rotation=rotation)
+        fa.fit(X=sample_data)
+        assert fa.loadings_.shape == (5, 2)
+        if rotation:
+            assert hasattr(fa, 'rotmat_')
+            assert fa.rotmat_.shape == (2, 2)
 
 def test_factor_analysis_get_factor_variance(sample_data):
     fa = FactorAnalysis(n_factors=2)
@@ -237,3 +293,13 @@ def test_factor_analysis_str_with_hypothesis_test(sample_data):
     assert "Test of the hypothesis that 2 factors are sufficient." in str_representation
     assert "The chi square statistic is" in str_representation
     assert "The p-value is" in str_representation
+
+def test_factor_analysis_attributes(sample_data):
+    fa = FactorAnalysis(n_factors=2)
+    fa.fit(X=sample_data)
+    assert hasattr(fa, 'n_iter_')
+    assert hasattr(fa, 'converged_')
+    assert hasattr(fa, 'loglike_')
+    assert hasattr(fa, 'dof_')
+    assert hasattr(fa, 'STATISTIC')
+    assert hasattr(fa, 'PVAL')

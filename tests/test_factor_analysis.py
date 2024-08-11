@@ -14,10 +14,10 @@ def test_factor_analysis_fit_attributes(sample_data):
     assert fa.uniquenesses_.shape == (5,)
     assert isinstance(fa.n_iter_, int)
     assert isinstance(fa.loglike_, float)
-    assert isinstance(fa.chi_square_, float)
+    assert isinstance(fa.criteria_['objective'], float)
+    assert fa.correlation_.shape == (5, 5)
+    assert isinstance(fa.n_obs_, int)
     assert isinstance(fa.dof_, int)
-    assert isinstance(fa.p_value_, float)
-    assert 0 <= fa.p_value_ <= 1
 
 def test_factor_analysis_invalid_init():
     with pytest.raises(ValueError, match="n_factors must be a positive integer"):
@@ -62,7 +62,6 @@ def test_factor_analysis_control_parameter(sample_data):
     fa_more_iter.fit(sample_data)
     
     assert fa_more_iter.n_iter_ >= fa_custom.n_iter_  
-
 
 def test_factor_analysis_invalid_init():
     with pytest.raises(ValueError):
@@ -148,8 +147,13 @@ def test_factor_analysis_rotation_consistency(sample_data):
         fa = FactorAnalysis(n_factors=2, rotation=rotation)
         fa.fit(sample_data)
         
-        reconstructed_loadings = fa.loadings_ @ fa.rotation_matrix_.T
+        reconstructed_loadings = fa.unrotated_loadings_ @ fa.rotation_matrix_
         assert np.allclose(fa.loadings_, reconstructed_loadings, atol=1e-5)
+
+        if rotation in [None, 'varimax']:
+            assert np.allclose(fa.rotation_matrix_ @ fa.rotation_matrix_.T, np.eye(2), atol=1e-5)
+
+        assert np.linalg.matrix_rank(fa.rotation_matrix_) == fa.rotation_matrix_.shape[0]
 
 def test_factor_analysis_rotation_consistency(sample_data):
     rotations = [None, 'varimax', 'promax']

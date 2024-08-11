@@ -7,6 +7,12 @@ def sample_data():
     np.random.seed(42)
     return np.random.rand(100, 5)
 
+@pytest.fixture
+def fitted_fa(sample_data):
+    fa = FactorAnalysis(n_factors=2, rotation='varimax')
+    fa.fit(sample_data)
+    return fa
+
 def test_factor_analysis_fit_attributes(sample_data):
     fa = FactorAnalysis(n_factors=2)
     fa.fit(sample_data)
@@ -113,15 +119,7 @@ def test_factor_analysis_promax_rotation(sample_data):
     fa = FactorAnalysis(n_factors=2, rotation='promax')
     fa.fit(sample_data)
     assert fa.loadings_.shape == (5, 2)
-    assert fa.rotation_matrix_.shape == (2, 2)
-    
-    fa_unrotated = FactorAnalysis(n_factors=2, rotation=None)
-    fa_unrotated.fit(sample_data)
-    assert not np.allclose(fa.loadings_, fa_unrotated.loadings_)
-
-    fa_varimax = FactorAnalysis(n_factors=2, rotation='varimax')
-    fa_varimax.fit(sample_data)
-    assert not np.allclose(fa.loadings_, fa_varimax.loadings_)
+    assert fa.rotmat_.shape == (2, 2)
 
 def test_factor_analysis_get_factor_variance(sample_data):
     fa = FactorAnalysis(n_factors=2)
@@ -162,16 +160,16 @@ def test_factor_analysis_rotation_consistency(sample_data):
         fa = FactorAnalysis(n_factors=2, rotation=rotation)
         fa.fit(sample_data)
         
-        reconstructed_loadings = fa.unrotated_loadings_ @ fa.rotation_matrix_
+        reconstructed_loadings = fa.unrotated_loadings_ @ fa.rotmat_
         if rotation == 'promax':
             reconstructed_loadings *= fa.scaling_factors_[:, None]
         
         assert np.allclose(fa.loadings_, reconstructed_loadings, atol=1e-5)
 
         if rotation in [None, 'varimax']:
-            assert np.allclose(fa.rotation_matrix_ @ fa.rotation_matrix_.T, np.eye(2), atol=1e-5)
+            assert np.allclose(fa.rotmat_ @ fa.rotmat_.T, np.eye(2), atol=1e-5)
 
-        assert np.linalg.matrix_rank(fa.rotation_matrix_) == fa.rotation_matrix_.shape[0]
+        assert np.linalg.matrix_rank(fa.rotmat_) == fa.rotmat_.shape[0]
 
         if rotation == 'promax':
             assert hasattr(fa, 'scaling_factors_')

@@ -238,11 +238,15 @@ class FactorAnalysis:
         M_inv = linalg.inv(M)
         return X_centered @ U @ self.loadings_ @ M_inv
     
-    def _varimax_rotation(self, loadings, max_iter=1000, tol=1e-5):
+    def _varimax_rotation(self, loadings, normalize=True, max_iter=1000, tol=1e-5):
         """Perform varimax rotation on loadings."""
         n_factors = loadings.shape[1]
         rotation_matrix = np.eye(n_factors)
         var = 0
+
+        if normalize:
+            communalities = np.sum(loadings**2, axis=1)
+            loadings = loadings / np.sqrt(communalities[:, None])
 
         for _ in range(max_iter):
             old_var = var
@@ -254,6 +258,9 @@ class FactorAnalysis:
                 break
 
         rotated_loadings = loadings @ rotation_matrix
+        if normalize:
+            rotated_loadings = rotated_loadings * np.sqrt(communalities[:, None])
+
         return rotated_loadings, rotation_matrix
     
     def _promax_rotation(self, loadings, power=4):

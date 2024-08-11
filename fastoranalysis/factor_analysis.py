@@ -81,6 +81,8 @@ class FactorAnalysis:
         self.dof_ = None
         self.p_value_ = None
         self.rotation_matrix_ = None
+        self.call_ = f"FactorAnalysis(n_factors={n_factors}, rotation='{rotation}', scores='{scores}')"
+        self.rotmat_ = None  
 
     def fit(self, X):
         """
@@ -128,12 +130,12 @@ class FactorAnalysis:
         self.loadings_ = self.unrotated_loadings_.copy()
 
         if self.rotation == 'varimax':
-            self.loadings_, self.rotation_matrix_ = self._varimax_rotation(self.loadings_)
+            self.loadings_, self.rotmat_ = self._varimax_rotation(self.loadings_)
             self.scaling_factors_ = np.ones(self.loadings_.shape[0])
         elif self.rotation == 'promax':
-            self.loadings_, self.rotation_matrix_, self.scaling_factors_ = self._promax_rotation(self.loadings_)
+            self.loadings_, self.rotmat_, self.scaling_factors_ = self._promax_rotation(self.loadings_)
         else:
-            self.rotation_matrix_ = np.eye(self.n_factors)
+            self.rotmat_ = np.eye(self.n_factors)
             self.scaling_factors_ = np.ones(self.loadings_.shape[0])
 
         self.n_iter_ = res.nit

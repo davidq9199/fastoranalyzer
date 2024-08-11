@@ -182,3 +182,58 @@ def test_factor_analysis_reproducibility(sample_data):
     fa2.fit(sample_data)
     assert np.allclose(fa1.loadings_, fa2.loadings_)
     assert np.allclose(fa1.uniquenesses_, fa2.uniquenesses_)
+
+def test_factor_analysis_str_representation(fitted_fa):
+    str_representation = str(fitted_fa)
+    
+    assert "Call:" in str_representation
+    assert "Uniquenesses:" in str_representation
+    assert "Loadings:" in str_representation
+    assert "SS loadings" in str_representation
+    assert "Proportion Var" in str_representation
+    assert f"Factor 1" in str_representation
+    assert f"Factor 2" in str_representation
+    assert f"Factor 3" not in str_representation
+    
+    assert "The degrees of freedom for the model is" in str_representation
+    assert ("The fit was" in str_representation) or ("Test of the hypothesis" in str_representation)
+
+def test_factor_analysis_format_loadings(fitted_fa):
+    formatted_loadings = fitted_fa._format_loadings()
+    
+    assert isinstance(formatted_loadings, str)
+    
+    assert "0.00" not in formatted_loadings
+    
+    assert ".00" in formatted_loadings or " 0.0" in formatted_loadings or "-0." in formatted_loadings
+
+
+def test_factor_analysis_str_representation_not_fitted():
+    fa = FactorAnalysis(n_factors=2)
+    assert str(fa) == "FactorAnalysis model is not fitted yet."
+
+def test_factor_analysis_format_matrix(fitted_fa):
+    matrix = np.array([[1.23456, 2.34567], [3.45678, 4.56789]])
+    
+    formatted_matrix = fitted_fa._format_matrix(matrix)
+    
+    assert isinstance(formatted_matrix, str)
+    assert ".235" in formatted_matrix or ".23" in formatted_matrix
+
+def test_factor_analysis_str_with_rotation(sample_data):
+    fa = FactorAnalysis(n_factors=2, rotation='varimax')
+    fa.fit(sample_data)
+    str_representation = str(fa)
+    
+    assert "Factor Correlations:" in str_representation
+
+def test_factor_analysis_str_with_hypothesis_test(sample_data):
+    fa = FactorAnalysis(n_factors=2)
+    fa.fit(sample_data)
+    fa.STATISTIC = 10.5  
+    fa.PVAL = 0.01  
+    str_representation = str(fa)
+    
+    assert "Test of the hypothesis that 2 factors are sufficient." in str_representation
+    assert "The chi square statistic is" in str_representation
+    assert "The p-value is" in str_representation

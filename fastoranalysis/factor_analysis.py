@@ -81,10 +81,12 @@ class FactorAnalysis:
         self.dof_ = None
         self.p_value_ = None
         self.rotation_matrix_ = None
+        self.n_obs_ = None
+        self.correlation_ = None
         self.call_ = f"FactorAnalysis(n_factors={n_factors}, rotation='{rotation}', scores='{scores}')"
         self.rotmat_ = None  
 
-    def fit(self, X):
+    def fit(self, X=None, covmat=None, n_obs=None):
         """
         Fit the factor analysis model.
 
@@ -99,13 +101,24 @@ class FactorAnalysis:
             Fitted estimator.
         
         """
-        X = np.asarray(X)
-        n_samples, n_features = X.shape
-
+        if X is None and covmat is None:
+            raise ValueError("Either X or covmat must be provided")
+        
+        if X is not None:
+            X = np.asarray(X)
+            n_samples, n_features = X.shape
+            self.n_obs_ = n_samples
+            self.correlation_ = np.corrcoef(X, rowvar=False)
+        elif covmat is not None:
+            if n_obs is None:
+                raise ValueError("n_obs must be provided when using a covariance matrix")
+            covmat = np.asarray(covmat)
+            n_features = covmat.shape[0]
+            self.n_obs_ = n_obs
+            self.correlation_ = self._cov2cor(covmat)
+        
         if n_features < self.n_factors:
             raise ValueError("n_features must be at least n_factors")
-
-        self.correlation_ = np.corrcoef(X, rowvar=False)
 
         def objective(uniquenesses):
             diag_unique = np.diag(uniquenesses)
@@ -141,19 +154,24 @@ class FactorAnalysis:
         self.n_iter_ = res.nit
         self.converged_ = res.success
         self.criteria_ = {'objective': res.fun}
-        self.n_obs_ = n_samples
         self.loglike_ = -res.fun
 
         self.dof_ = ((n_features - self.n_factors)**2 - n_features - self.n_factors) // 2
 
         if self.dof_ > 0:
-            self.STATISTIC = (n_samples - 1 - (2 * n_features + 5) / 6 - (2 * self.n_factors) / 3) * res.fun
+            self.STATISTIC = (self.n_obs_ - 1 - (2 * n_features + 5) / 6 - (2 * self.n_factors) / 3) * res.fun
             self.PVAL = stats.chi2.sf(self.STATISTIC, self.dof_)
 
-        if self.scores_method != 'none':
+        if self.scores_method != 'none' and X is not None:
             self.scores_ = self.transform(X)
 
         return self
+    
+    def _cov2cor(self, cov):
+        """Convert covariance matrix to correlation matrix."""
+        std = np.sqrt(np.diag(cov))
+        cor = cov / np.outer(std, std)
+        return np.clip(cor, -1, 1)
         
     def transform(self, X):
         """

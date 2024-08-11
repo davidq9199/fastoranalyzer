@@ -103,11 +103,11 @@ class FactorAnalysis:
         if n_features < self.n_factors:
             raise ValueError("n_features must be at least n_factors")
 
-        corr = np.corrcoef(X, rowvar=False)
+        self.correlation_ = np.corrcoef(X, rowvar=False)
 
         def objective(uniquenesses):
             diag_unique = np.diag(uniquenesses)
-            _, s, Vt = linalg.svd(corr - diag_unique)
+            _, s, Vt = linalg.svd(self.correlation_ - diag_unique)
             loadings = Vt[:self.n_factors, :].T * np.sqrt(s[:self.n_factors])
             return -np.sum(np.log(s[self.n_factors:])) + np.sum(np.log(uniquenesses))
 
@@ -122,7 +122,7 @@ class FactorAnalysis:
 
         self.uniquenesses_ = res.x
         diag_unique = np.diag(self.uniquenesses_)
-        _, s, Vt = linalg.svd(corr - diag_unique)
+        _, s, Vt = linalg.svd(self.correlation_ - diag_unique)
         
         self.unrotated_loadings_ = Vt[:self.n_factors, :].T * np.sqrt(s[:self.n_factors])
         self.loadings_ = self.unrotated_loadings_.copy()
@@ -137,10 +137,19 @@ class FactorAnalysis:
             self.scaling_factors_ = np.ones(self.loadings_.shape[0])
 
         self.n_iter_ = res.nit
+        self.converged_ = res.success
+        self.criteria_ = {'objective': res.fun}
+        self.n_obs_ = n_samples
         self.loglike_ = -res.fun
-        self.dof_ = int(((n_features - self.n_factors)**2 - n_features - self.n_factors) / 2)
-        self.chi_square_ = (n_samples - 1 - (2 * n_features + 5) / 6 - (2 * self.n_factors) / 3) * res.fun
-        self.p_value_ = 1 - stats.chi2.cdf(self.chi_square_, self.dof_)
+
+        self.dof_ = ((n_features - self.n_factors)**2 - n_features - self.n_factors) // 2
+
+        if self.dof_ > 0:
+            self.STATISTIC = (n_samples - 1 - (2 * n_features + 5) / 6 - (2 * self.n_factors) / 3) * res.fun
+            self.PVAL = stats.chi2.sf(self.STATISTIC, self.dof_)
+
+        if self.scores_method != 'none':
+            self.scores_ = self.transform(X)
 
         return self
         

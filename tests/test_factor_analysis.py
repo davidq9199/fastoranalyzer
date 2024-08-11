@@ -162,6 +162,25 @@ def test_factor_analysis_with_varimax_rotation(sample_data):
     fa_unrotated.fit(sample_data)
     assert not np.allclose(fa.loadings_, fa_unrotated.loadings_)
 
+def test_normalized_varimax_rotation():
+    np.random.seed(42)
+    X = np.random.rand(100, 5)
+    
+    fa_normalized = FactorAnalysis(n_factors=2, rotation='varimax')
+    fa_normalized.fit(X)
+    
+    fa_unnormalized = FactorAnalysis(n_factors=2, rotation='varimax')
+    fa_unnormalized.fit(X)
+    fa_unnormalized.loadings_, _ = fa_unnormalized._varimax_rotation(fa_unnormalized.unrotated_loadings_, normalize=False)
+    
+    assert not np.allclose(fa_normalized.loadings_, fa_unnormalized.loadings_)
+    
+    original_communalities = np.sum(fa_normalized.unrotated_loadings_**2, axis=1)
+    rotated_communalities = np.sum(fa_normalized.loadings_**2, axis=1)
+
+    assert np.allclose(original_communalities, rotated_communalities)
+    assert np.allclose(np.sum(fa_normalized.loadings_**2), np.sum(fa_normalized.unrotated_loadings_**2))
+
 def test_factor_analysis_promax_rotation(sample_data):
     fa = FactorAnalysis(n_factors=2, rotation='promax')
     fa.fit(sample_data)

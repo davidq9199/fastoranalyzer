@@ -61,13 +61,15 @@ class FactorAnalysis:
 
     """
 
-    def __init__(self, n_factors, rotation=None, scores='regression', control=None):
+    def __init__(self, n_factors, rotation='varimax', scores='regression', na_action='omit', control=None):
         if not isinstance(n_factors, int) or n_factors <= 0:
             raise ValueError("n_factors must be a positive integer")
         if rotation not in ['varimax', 'promax', None]:
             raise ValueError("rotation must be 'varimax', 'promax', or None")
         if scores not in ['regression', 'bartlett']:
             raise ValueError("scores must be 'regression' or 'bartlett'")
+        if na_action not in ['omit', 'fail']:
+            raise ValueError("na_action must be 'omit' or 'fail'")
         
         self.n_factors = n_factors
         self.rotation = rotation

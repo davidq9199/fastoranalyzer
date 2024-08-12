@@ -74,6 +74,7 @@ class FactorAnalysis:
         self.n_factors = n_factors
         self.rotation = rotation
         self.scores_method = scores
+        self.na_action = na_action
         self.control = control or {}
         self.loadings_ = None
         self.uniquenesses_ = None
@@ -88,7 +89,7 @@ class FactorAnalysis:
         self.call_ = f"FactorAnalysis(n_factors={n_factors}, rotation='{rotation}', scores='{scores}')"
         self.rotmat_ = None  
 
-    def fit(self, X=None, covmat=None, n_obs=None):
+    def fit(self, X=None, covmat=None, n_obs=None, subset=None, na_action='omit'):
         """
         Fit the factor analysis model.
 
@@ -108,9 +109,25 @@ class FactorAnalysis:
         
         if X is not None:
             X = np.asarray(X)
+            if subset is not None:
+                X = X[subset]
+            
+            if np.isnan(X).any():
+                if na_action == 'omit':
+                    mask = ~np.isnan(X).any(axis=1)
+                    X = X[mask]
+                elif na_action == 'fail':
+                    raise ValueError("Input contains NaN values")
+                else:
+                    raise ValueError("Invalid na_action. Choose 'omit' or 'fail'")
+            
             n_samples, n_features = X.shape
+            if n_samples == 0:
+                raise ValueError("0 samples left after handling missing values")
+            
             self.n_obs_ = n_samples
             self.correlation_ = np.corrcoef(X, rowvar=False)
+
         elif covmat is not None:
             if n_obs is None:
                 raise ValueError("n_obs must be provided when using a covariance matrix")

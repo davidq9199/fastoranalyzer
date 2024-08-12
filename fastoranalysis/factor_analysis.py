@@ -89,7 +89,7 @@ class FactorAnalysis:
         self.call_ = f"FactorAnalysis(n_factors={n_factors}, rotation='{rotation}', scores='{scores}')"
         self.rotmat_ = None  
 
-    def fit(self, X=None, covmat=None, n_obs=None, subset=None, na_action='omit'):
+    def fit(self, X=None, covmat=None, n_obs=None, subset=None, na_action='omit', start=None):
         """
         Fit the factor analysis model.
 
@@ -139,22 +139,30 @@ class FactorAnalysis:
         if n_features < self.n_factors:
             raise ValueError("n_features must be at least n_factors")
 
-        def objective(uniquenesses):
-            diag_unique = np.diag(uniquenesses)
-            _, s, Vt = linalg.svd(self.correlation_ - diag_unique)
-            loadings = Vt[:self.n_factors, :].T * np.sqrt(s[:self.n_factors])
-            return -np.sum(np.log(s[self.n_factors:])) + np.sum(np.log(uniquenesses))
+        if start is None:
+                start = np.random.uniform(0.1, 0.9, (n_features, 1))
+        else:
+            start = np.asarray(start)
+            if start.ndim == 1:
+                start = start.reshape(-1, 1)
+            if start.shape[0] != n_features:
+                raise ValueError(f"'start' must have {n_features} rows")
+        nstart = start.shape[1]
 
-        initial_uniquenesses = np.ones(n_features)
-        
-        default_options = {'maxiter': 1000}
-        options = {**default_options, **self.control}
-        
-        res = optimize.minimize(objective, initial_uniquenesses, method='L-BFGS-B', 
-                                bounds=[(0.005, 1)] * n_features, 
-                                options=options)
+        best_res = None
+        best_objective = np.inf
 
-        self.uniquenesses_ = res.x
+        for i in range(nstart):
+            res = self._fit_single(start[:, i], n_features)
+            if res.fun < best_objective:
+                best_res = res
+                best_objective = res.fun
+
+        if best_res is None:
+            raise ValueError("Unable to optimize from the given starting value(s)")
+
+        self.uniquenesses_ = best_res.x
+        self.converged_ = best_res.success
         diag_unique = np.diag(self.uniquenesses_)
         _, s, Vt = linalg.svd(self.correlation_ - diag_unique)
         
@@ -170,21 +178,36 @@ class FactorAnalysis:
             self.rotmat_ = np.eye(self.n_factors)
             self.scaling_factors_ = np.ones(self.loadings_.shape[0])
 
-        self.n_iter_ = res.nit
-        self.converged_ = res.success
-        self.criteria_ = {'objective': res.fun}
-        self.loglike_ = -res.fun
+        self.n_iter_ = best_res.nit
+        self.converged_ = best_res.success
+        self.criteria_ = {'objective': best_res.fun}
+        self.loglike_ = -best_res.fun
 
         self.dof_ = ((n_features - self.n_factors)**2 - n_features - self.n_factors) // 2
 
         if self.dof_ > 0:
-            self.STATISTIC = (self.n_obs_ - 1 - (2 * n_features + 5) / 6 - (2 * self.n_factors) / 3) * res.fun
+            self.STATISTIC = (self.n_obs_ - 1 - (2 * n_features + 5) / 6 - (2 * self.n_factors) / 3) * best_res.fun
             self.PVAL = stats.chi2.sf(self.STATISTIC, self.dof_)
 
         if self.scores_method != 'none' and X is not None:
             self.scores_ = self.transform(X)
 
         return self
+    
+    def _fit_single(self, start, n_features):
+        """Fit the model with a single starting value."""
+        def objective(uniquenesses):
+            diag_unique = np.diag(uniquenesses)
+            _, s, Vt = linalg.svd(self.correlation_ - diag_unique)
+            loadings = Vt[:self.n_factors, :].T * np.sqrt(s[:self.n_factors])
+            return -np.sum(np.log(s[self.n_factors:])) + np.sum(np.log(uniquenesses))
+
+        default_options = {'maxiter': 1000}
+        options = {**default_options, **self.control}
+        
+        return optimize.minimize(objective, start, method='L-BFGS-B', 
+                                bounds=[(0.005, 1)] * n_features, 
+                                options=options)
     
     def _cov2cor(self, cov):
         """Convert covariance matrix to correlation matrix."""

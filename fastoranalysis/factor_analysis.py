@@ -140,7 +140,8 @@ class FactorAnalysis:
             raise ValueError("n_features must be at least n_factors")
 
         if start is None:
-                start = np.random.uniform(0.1, 0.9, (n_features, 1))
+            nstart = self.control.get('nstart', 1)
+            start = np.random.uniform(0.1, 0.9, (n_features, nstart))
         else:
             start = np.asarray(start)
             if start.ndim == 1:
@@ -204,6 +205,7 @@ class FactorAnalysis:
 
         default_options = {'maxiter': 1000}
         options = {**default_options, **self.control}
+        options.pop('nstart', None)
         
         return optimize.minimize(objective, start, method='L-BFGS-B', 
                                 bounds=[(0.005, 1)] * n_features, 

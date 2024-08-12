@@ -91,6 +91,39 @@ def test_factor_analysis_too_many_factors(sample_data):
     with pytest.raises(ValueError, match="n_features must be at least n_factors"):
         fa.fit(X=sample_data)
 
+def test_factor_analysis_start_parameter(sample_data):
+    n_features = sample_data.shape[1]
+    start = np.random.uniform(0.1, 0.9, n_features)
+    fa = FactorAnalysis(n_factors=2)
+    fa.fit(X=sample_data, start=start)
+    assert fa.loadings_.shape == (n_features, 2)
+    assert fa.uniquenesses_.shape == (n_features,)
+
+def test_factor_analysis_multiple_starts(sample_data):
+    n_features = sample_data.shape[1]
+    n_starts = 3
+    start = np.random.uniform(0.1, 0.9, (n_features, n_starts))
+    fa = FactorAnalysis(n_factors=2)
+    fa.fit(X=sample_data, start=start)
+    assert fa.loadings_.shape == (n_features, 2)
+    assert fa.uniquenesses_.shape == (n_features,)
+
+def test_factor_analysis_invalid_start(sample_data):
+    n_features = sample_data.shape[1]
+    start = np.random.uniform(0.1, 0.9, n_features + 1) 
+    fa = FactorAnalysis(n_factors=2)
+    with pytest.raises(ValueError, match="'start' must have"):
+        fa.fit(X=sample_data, start=start)
+
+def test_factor_analysis_nstart_control(sample_data):
+    fa_single = FactorAnalysis(n_factors=2, control={'nstart': 1})
+    fa_single.fit(sample_data)
+
+    fa_multiple = FactorAnalysis(n_factors=2, control={'nstart': 5})
+    fa_multiple.fit(sample_data)
+
+    assert fa_multiple.criteria_['objective'] <= fa_single.criteria_['objective']
+
 def test_factor_analysis_no_scores_with_covmat(sample_covmat):
     fa = FactorAnalysis(n_factors=2, scores='regression')
     fa.fit(covmat=sample_covmat, n_obs=100)
@@ -117,12 +150,14 @@ def test_factor_analysis_control_parameter(sample_data):
     fa_custom.fit(sample_data)
 
     assert fa_custom.n_iter_ <= 1
+    assert not fa_custom.converged_
     assert fa_default.n_iter_ >= fa_custom.n_iter_ 
 
     fa_more_iter = FactorAnalysis(n_factors=2, control={'maxiter': 100})
     fa_more_iter.fit(sample_data)
     
-    assert fa_more_iter.n_iter_ >= fa_custom.n_iter_  
+    assert fa_more_iter.n_iter_ >= fa_custom.n_iter_
+    assert fa_more_iter.converged_  
 
 def test_factor_analysis_invalid_init():
     with pytest.raises(ValueError):

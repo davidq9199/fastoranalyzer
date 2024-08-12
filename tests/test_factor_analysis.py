@@ -8,6 +8,14 @@ def sample_data():
     return np.random.rand(100, 5)
 
 @pytest.fixture
+def sample_data_with_missing():
+    np.random.seed(42)
+    X = np.random.rand(100, 5)
+    X[10:20, 0] = np.nan
+    X[30:40, 2] = np.nan
+    return X
+
+@pytest.fixture
 def fitted_fa(sample_data):
     fa = FactorAnalysis(n_factors=2, rotation='varimax')
     fa.fit(sample_data)
@@ -134,6 +142,45 @@ def test_factor_analysis_fit_invalid_input():
         fa.fit(np.random.rand(10))
     with pytest.raises(ValueError):
         fa.fit(np.random.rand(10, 1))  # n_features < n_factors
+
+def test_factor_analysis_subset(sample_data):
+    fa = FactorAnalysis(n_factors=2)
+    subset = np.random.choice(100, 50, replace=False)
+    fa.fit(X=sample_data, subset=subset)
+    assert fa.n_obs_ == 50
+    assert fa.loadings_.shape == (5, 2)
+
+def test_factor_analysis_subset_with_missing_data(sample_data_with_missing):
+    fa = FactorAnalysis(n_factors=2)
+    subset = np.arange(0, 100, 2) 
+    fa.fit(X=sample_data_with_missing, subset=subset, na_action='omit')
+    assert fa.n_obs_ <= 50
+    assert fa.loadings_.shape == (5, 2)
+
+def test_factor_analysis_missing_data_fail(sample_data_with_missing):
+    fa = FactorAnalysis(n_factors=2)
+    with pytest.raises(ValueError, match="Input contains NaN values"):
+        fa.fit(X=sample_data_with_missing, na_action='fail')
+
+def test_factor_analysis_subset_with_missing_data(sample_data_with_missing):
+    fa = FactorAnalysis(n_factors=2)
+    subset = np.arange(0, 100, 2)
+    fa.fit(X=sample_data_with_missing, subset=subset, na_action='omit')
+    assert fa.n_obs_ == 40
+    assert fa.loadings_.shape == (5, 2)
+
+def test_factor_analysis_invalid_na_action(sample_data_with_missing):
+    fa = FactorAnalysis(n_factors=2)
+    with pytest.raises(ValueError, match="Invalid na_action"):
+        fa.fit(X=sample_data_with_missing, na_action='invalid')
+
+def test_factor_analysis_subset_all_missing():
+    X = np.full((100, 5), np.nan)
+    X[:10, :] = 1 
+    fa = FactorAnalysis(n_factors=2)
+    subset = np.arange(10, 100)
+    with pytest.raises(ValueError, match="0 samples left after handling missing values"):
+        fa.fit(X=X, subset=subset, na_action='omit')
 
 def test_factor_analysis_transform(sample_data):
     fa = FactorAnalysis(n_factors=2)

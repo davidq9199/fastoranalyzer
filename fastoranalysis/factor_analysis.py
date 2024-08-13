@@ -388,7 +388,15 @@ class FactorAnalysis:
         -------
         variance : ndarray of shape (3, n_factors)
             Array with variance, proportion of variance and cumulative proportion of variance explained.
-        
+            - Row 0: Variance explained by each factor
+            - Row 1: Proportion of total variance explained by each factor
+            - Row 2: Cumulative proportion of variance explained
+
+        Raises
+        ------
+        ValueError
+            If the FactorAnalysis model is not fitted yet.
+            
         """
         if self.loadings_ is None:
             raise ValueError("FactorAnalysis model is not fitted yet.")

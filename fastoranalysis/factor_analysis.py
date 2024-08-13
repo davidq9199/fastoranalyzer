@@ -121,13 +121,32 @@ class FactorAnalysis:
 
         Parameters
         ----------
-        X : array-like of shape (n_samples, n_features)
-            Training data.
+        X : array-like of shape (n_samples, n_features), optional
+            The input samples. If both X and covmat are provided, X takes precedence.
+        covmat : array-like of shape (n_features, n_features), optional
+            The covariance matrix. If provided without X, n_obs must also be specified.
+        n_obs : int, optional
+            The number of observations. Required if covmat is provided without X.
+        subset : array-like, optional
+            Indices of samples to use. If provided, only these samples are used.
+        na_action : {'omit', 'fail'}, default='omit'
+            Specifies how to handle missing values:
+            - 'omit': Remove samples with any missing values.
+            - 'fail': Raise an error if there are any missing values.
+        start : array-like of shape (n_features,) or (n_features, n_starts), optional
+            Starting values for uniquenesses. If 2D, each column is tried as a starting value.
 
         Returns
         -------
         self : object
             Fitted estimator.
+
+        Raises
+        ------
+        ValueError
+            If neither X nor covmat is provided, or if covmat is provided without n_obs.
+            If the number of features is less than the number of factors.
+            If unable to optimize from the given starting value(s).
         
         """
         if X is None and covmat is None:

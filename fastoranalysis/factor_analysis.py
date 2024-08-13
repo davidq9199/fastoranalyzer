@@ -13,8 +13,21 @@ class FactorAnalysis:
     ----------
     n_factors : int
         Number of factors to extract.
-    rotation : {'varimax', None}, default=None
-        Method for rotation of factors. If None, no rotation is performed.
+    rotation : {'varimax', 'promax', None}, default='varimax'
+        Method for rotation of factors. 
+        - 'varimax': Perform varimax rotation.
+        - 'promax': Perform promax rotation.
+        - None: No rotation is performed.
+    scores : {'regression', 'bartlett'}, default='regression'
+        Method for computing factor scores.
+        - 'regression': Compute regression scores.
+        - 'bartlett': Compute Bartlett scores.
+    na_action : {'omit', 'fail'}, default='omit'
+        Specifies the action to take if missing values are found.
+        - 'omit': Remove samples with missing values.
+        - 'fail': Raise an error if missing values are encountered.
+    control : dict, optional
+        A dictionary of control parameters for the optimization algorithm.
 
     Attributes
     ----------
@@ -32,15 +45,27 @@ class FactorAnalysis:
         Degrees of freedom for the chi-square test.
     p_value_ : float
         P-value for the chi-square test.
+    rotation_matrix_ : ndarray of shape (n_factors, n_factors)
+        Rotation matrix used to rotate the factors.
+    n_obs_ : int
+        Number of observations used in the analysis.
+    correlation_ : ndarray of shape (n_features, n_features)
+        Correlation matrix of the input data.
+    converged_ : bool
+        Whether the optimization algorithm converged.
+    criteria_ : dict
+        Dictionary containing optimization criteria.
 
     Methods
     -------
-    fit(X)
+    fit(X=None, covmat=None, n_obs=None, subset=None, na_action='omit', start=None)
         Fit the factor analysis model.
     transform(X)
         Apply dimensionality reduction to X using the fitted model.
     score(X)
         Compute factor scores using the fitted model.
+    get_factor_variance()
+        Compute variance explained by each factor.
 
     Examples
     --------
@@ -51,6 +76,7 @@ class FactorAnalysis:
     >>> fa.fit(X)
     >>> transformed_X = fa.transform(X)
     >>> scores = fa.score(X)
+    >>> variance = fa.get_factor_variance()
 
     Notes
     -----

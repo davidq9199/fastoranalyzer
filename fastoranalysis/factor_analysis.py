@@ -274,7 +274,13 @@ class FactorAnalysis:
         Returns
         -------
         X_new : ndarray of shape (n_samples, n_factors)
-            Transformed data.
+            Transformed data (factor scores).
+
+        Raises
+        ------
+        ValueError
+            If the model has not been fitted yet.
+            If X has a different number of features than the fitted model.
 
         """
         if self.loadings_ is None:

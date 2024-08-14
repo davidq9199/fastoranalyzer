@@ -1,11 +1,11 @@
-# test_r_factanal.R
-
 library(stats)
 library(jsonlite)
 
-set.seed(42)  
+set.seed(58) 
+script_dir <- getwd()
 
-dir.create("tests/r_tests/output", showWarnings = FALSE, recursive = TRUE)
+output_dir <- file.path(script_dir, "output")
+dir.create(output_dir, showWarnings = FALSE, recursive = TRUE)
 
 generate_sample_data <- function(n_samples, n_features) {
   matrix(rnorm(n_samples * n_features), nrow = n_samples)
@@ -40,13 +40,14 @@ for (i in seq_along(test_cases)) {
   case <- test_cases[[i]]
   X <- generate_sample_data(case$n_samples, case$n_features)
   
-  write.csv(X, file = sprintf("tests/r_tests/output/test_data_case_%d.csv", i), row.names = FALSE)
+  write.table(X, file = file.path(output_dir, sprintf("test_data_case_%d.csv", i)), 
+              row.names = FALSE, col.names = FALSE, sep = ",")
   
   results[[sprintf("case_%d_varimax", i)]] <- run_factanal(X, case$n_factors, rotation = "varimax")
   results[[sprintf("case_%d_promax", i)]] <- run_factanal(X, case$n_factors, rotation = "promax")
   results[[sprintf("case_%d_none", i)]] <- run_factanal(X, case$n_factors, rotation = "none")
 }
 
-writeLines(toJSON(results, pretty = TRUE, digits = 10), "tests/r_tests/output/r_factanal_results.json")
+writeLines(toJSON(results, pretty = TRUE, digits = 10), file.path(output_dir, "r_factanal_results.json"))
 
-print("R factanal tests done. Results saved at tests/r_tests/output/r_factanal_results.json")
+print(paste("R factanal tests done. Results saved at", file.path(output_dir, "r_factanal_results.json")))

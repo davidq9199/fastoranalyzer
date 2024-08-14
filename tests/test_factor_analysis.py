@@ -9,7 +9,7 @@ def sample_data():
 
 @pytest.fixture
 def sample_data_with_missing():
-    np.random.seed(42)
+    np.random.seed(58)
     X = np.random.rand(100, 5)
     X[10:20, 0] = np.nan
     X[30:40, 2] = np.nan

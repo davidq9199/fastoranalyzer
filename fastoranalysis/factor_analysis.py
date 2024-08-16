@@ -14,6 +14,8 @@ class FactorAnalysis:
     n_factors : int
         Number of factors to extract.
     rotation : {'varimax', 'promax', None}, default='varimax'
+    use_smc : bool, default=True
+        Whether to use Squared Multiple Correlations for initial uniqueness values.
         Method for rotation of factors. 
         - 'varimax': Perform varimax rotation.
         - 'promax': Perform promax rotation.

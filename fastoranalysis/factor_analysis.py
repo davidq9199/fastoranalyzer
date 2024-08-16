@@ -191,7 +191,6 @@ class FactorAnalysis:
         if start is None:
             nstart = self.control.get('nstart', 1)
             start = np.random.uniform(0.1, 0.9, (n_features, nstart))
-
         else:
             start = np.asarray(start)
             if start.ndim == 1:

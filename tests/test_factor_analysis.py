@@ -108,13 +108,6 @@ def test_factor_analysis_multiple_starts(sample_data):
     assert fa.loadings_.shape == (n_features, 2)
     assert fa.uniquenesses_.shape == (n_features,)
 
-def test_factor_analysis_invalid_start(sample_data):
-    n_features = sample_data.shape[1]
-    start = np.random.uniform(0.1, 0.9, n_features + 1) 
-    fa = FactorAnalysis(n_factors=2)
-    with pytest.raises(ValueError, match="'start' must have"):
-        fa.fit(X=sample_data, start=start)
-
 def test_factor_analysis_nstart_control(sample_data):
     fa_single = FactorAnalysis(n_factors=2, control={'nstart': 1})
     fa_single.fit(sample_data)

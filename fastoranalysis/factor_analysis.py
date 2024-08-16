@@ -14,6 +14,8 @@ class FactorAnalysis:
     n_factors : int
         Number of factors to extract.
     rotation : {'varimax', 'promax', None}, default='varimax'
+    use_smc : bool, default=True
+        Whether to use Squared Multiple Correlations for initial uniqueness values.
         Method for rotation of factors. 
         - 'varimax': Perform varimax rotation.
         - 'promax': Perform promax rotation.
@@ -87,7 +89,7 @@ class FactorAnalysis:
 
     """
 
-    def __init__(self, n_factors, rotation='varimax', scores='regression', na_action='omit', control=None):
+    def __init__(self, n_factors, rotation='varimax', scores='regression', na_action='omit', control=None, use_smc=True):
         if not isinstance(n_factors, int) or n_factors <= 0:
             raise ValueError("n_factors must be a positive integer")
         if rotation not in ['varimax', 'promax', None]:
@@ -100,6 +102,7 @@ class FactorAnalysis:
         self.n_factors = n_factors
         self.rotation = rotation
         self.scores_method = scores
+        self.use_smc = use_smc
         self.na_action = na_action
         self.control = control or {}
         self.loadings_ = None
@@ -184,15 +187,20 @@ class FactorAnalysis:
         if n_features < self.n_factors:
             raise ValueError("n_features must be at least n_factors")
 
+        if self.use_smc:
+            start = self._smc(self.correlation_)
+
         if start is None:
             nstart = self.control.get('nstart', 1)
             start = np.random.uniform(0.1, 0.9, (n_features, nstart))
-        else:
+        if start is not None:
             start = np.asarray(start)
             if start.ndim == 1:
                 start = start.reshape(-1, 1)
             if start.shape[0] != n_features:
-                raise ValueError(f"'start' must have {n_features} rows")
+                raise ValueError(f"'start' must have exactly {n_features} elements")
+            if start.ndim > 2:
+                raise ValueError(f"'start' must be a 1D or 2D array")
         nstart = start.shape[1]
 
         best_res = None
@@ -239,6 +247,11 @@ class FactorAnalysis:
             self.scores_ = self.transform(X)
 
         return self
+    
+    def _smc(self, corr_matrix):
+        """Compute squared multiple correlations."""
+        inv_corr = linalg.inv(corr_matrix)
+        return 1 - 1 / np.diag(inv_corr)
     
     def _fit_single(self, start, n_features):
         """Fit the model with a single starting value."""

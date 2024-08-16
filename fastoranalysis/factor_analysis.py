@@ -193,12 +193,14 @@ class FactorAnalysis:
         if start is None:
             nstart = self.control.get('nstart', 1)
             start = np.random.uniform(0.1, 0.9, (n_features, nstart))
-        else:
+        if start is not None:
             start = np.asarray(start)
             if start.ndim == 1:
                 start = start.reshape(-1, 1)
             if start.shape[0] != n_features:
-                raise ValueError(f"'start' must have {n_features} rows")
+                raise ValueError(f"'start' must have exactly {n_features} elements")
+            if start.ndim > 2:
+                raise ValueError(f"'start' must be a 1D or 2D array")
         nstart = start.shape[1]
 
         best_res = None

@@ -86,7 +86,6 @@ class FactorAnalysis:
     x = Λf + e
     where x is a p-element vector, Λ is a p × k matrix of loadings,
     f is a k-element vector of scores, and e is a p-element vector of errors.
-
     """
 
     def __init__(self, n_factors, rotation='varimax', scores='regression', na_action='omit', control=None, use_smc=True):
@@ -116,7 +115,7 @@ class FactorAnalysis:
         self.n_obs_ = None
         self.correlation_ = None
         self.call_ = f"FactorAnalysis(n_factors={n_factors}, rotation='{rotation}', scores='{scores}')"
-        self.rotmat_ = None  
+        self.rotmat_ = None
 
     def fit(self, X=None, covmat=None, n_obs=None, subset=None, na_action='omit', start=None):
         """
@@ -150,7 +149,6 @@ class FactorAnalysis:
             If neither X nor covmat is provided, or if covmat is provided without n_obs.
             If the number of features is less than the number of factors.
             If unable to optimize from the given starting value(s).
-        
         """
         if X is None and covmat is None:
             raise ValueError("Either X or covmat must be provided")
@@ -218,7 +216,10 @@ class FactorAnalysis:
         self.uniquenesses_ = best_res.x
         self.converged_ = best_res.success
         diag_unique = np.diag(self.uniquenesses_)
-        _, s, Vt = linalg.svd(self.correlation_ - diag_unique)
+        corr_minus_diag = self.correlation_ - diag_unique
+        s, Vt = linalg.eigh(corr_minus_diag)
+        s = s[::-1]
+        Vt = Vt[:, ::-1].T
         
         self.unrotated_loadings_ = Vt[:self.n_factors, :].T * np.sqrt(s[:self.n_factors])
         self.loadings_ = self.unrotated_loadings_.copy()
@@ -257,8 +258,9 @@ class FactorAnalysis:
         """Fit the model with a single starting value."""
         def objective(uniquenesses):
             diag_unique = np.diag(uniquenesses)
-            loadings = self._compute_loadings(diag_unique, n_features)
-            return -np.sum(np.log(loadings['eigenvalues'][self.n_factors:])) + np.sum(np.log(uniquenesses))
+            corr_minus_diag = self.correlation_ - diag_unique
+            s = linalg.eigvalsh(corr_minus_diag)[::-1]
+            return -np.sum(np.log(s[self.n_factors:])) + np.sum(np.log(uniquenesses))
 
         default_options = {'maxiter': 1000}
         options = {**default_options, **self.control}
@@ -268,13 +270,6 @@ class FactorAnalysis:
                                 bounds=[(0.005, 1)] * n_features, 
                                 options=options)
 
-    def _compute_loadings(self, diag_unique, n_features):
-        """Helper method to compute loadings and eigenvalues."""
-        corr_minus_diag = self.correlation_ - diag_unique
-        _, s, Vt = linalg.svd(corr_minus_diag)
-        loadings = Vt[:self.n_factors, :].T * np.sqrt(s[:self.n_factors])
-        return {'loadings': loadings, 'eigenvalues': s}
-    
     def _cov2cor(self, cov):
         """Convert covariance matrix to correlation matrix."""
         std = np.sqrt(np.diag(cov))
@@ -300,7 +295,6 @@ class FactorAnalysis:
         ValueError
             If the model has not been fitted yet.
             If X has a different number of features than the fitted model.
-
         """
         if self.loadings_ is None:
             raise ValueError("FactorAnalysis model is not fitted yet.")
@@ -324,7 +318,6 @@ class FactorAnalysis:
         -------
         scores : ndarray of shape (n_samples, n_factors)
             Factor scores.
-
         """
         if self.loadings_ is None:
             raise ValueError("FactorAnalysis model is not fitted yet.")
@@ -340,9 +333,8 @@ class FactorAnalysis:
     
     def _regression_scores(self, X):
         """Compute regression scores."""
-        corr = np.corrcoef(X, rowvar=False)
-        inv_corr = linalg.inv(corr)
-        return X @ inv_corr @ self.loadings_
+        X_centered = X - X.mean(axis=0)
+        return X_centered @ linalg.inv(self.correlation_) @ self.loadings_
 
     def _bartlett_scores(self, X):
         """Compute Bartlett's scores."""
@@ -353,29 +345,29 @@ class FactorAnalysis:
         return X_centered @ U @ self.loadings_ @ M_inv
     
     def _varimax_rotation(self, loadings, normalize=True, max_iter=1000, tol=1e-5):
-        """Perform varimax rotation on loadings."""
-        n_factors = loadings.shape[1]
-        rotation_matrix = np.eye(n_factors)
-        var = 0
+            """Perform varimax rotation on loadings."""
+            n_factors = loadings.shape[1]
+            rotation_matrix = np.eye(n_factors)
+            var = 0
 
-        if normalize:
-            communalities = np.sum(loadings**2, axis=1)
-            loadings = loadings / np.sqrt(communalities[:, None])
+            if normalize:
+                communalities = np.sum(loadings**2, axis=1)
+                loadings = loadings / np.sqrt(communalities[:, None])
 
-        for _ in range(max_iter):
-            old_var = var
-            comp = loadings @ rotation_matrix
-            u, s, v = linalg.svd(loadings.T @ (comp**3 - (1/3) * comp @ np.diag(np.sum(comp**2, axis=0))))
-            rotation_matrix = u @ v
-            var = np.sum(s)
-            if var - old_var < tol:
-                break
+            for _ in range(max_iter):
+                old_var = var
+                comp = loadings @ rotation_matrix
+                u, s, v = linalg.svd(loadings.T @ (comp**3 - (1/3) * comp @ np.diag(np.sum(comp**2, axis=0))))
+                rotation_matrix = u @ v
+                var = np.sum(s)
+                if var - old_var < tol:
+                    break
 
-        rotated_loadings = loadings @ rotation_matrix
-        if normalize:
-            rotated_loadings = rotated_loadings * np.sqrt(communalities[:, None])
+            rotated_loadings = loadings @ rotation_matrix
+            if normalize:
+                rotated_loadings = rotated_loadings * np.sqrt(communalities[:, None])
 
-        return rotated_loadings, rotation_matrix
+            return rotated_loadings, rotation_matrix
     
     def _promax_rotation(self, loadings, power=4):
         """Perform promax rotation on loadings."""
@@ -415,7 +407,6 @@ class FactorAnalysis:
         ------
         ValueError
             If the FactorAnalysis model is not fitted yet.
-            
         """
         if self.loadings_ is None:
             raise ValueError("FactorAnalysis model is not fitted yet.")

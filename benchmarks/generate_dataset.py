@@ -2,7 +2,7 @@ import os
 import numpy as np
 
 def generate_dataset_by_size(n_features, n_factors, target_mb):
-    sample_size_estimate = int((target_mb * 1024 * 1024) / (n_features * 8))
+    sample_size_estimate = int((target_mb * 1024 * 320) / (n_features * 8))
     np.random.seed(0)
     loadings = np.random.rand(n_features, n_factors)
     factors = np.random.rand(sample_size_estimate, n_factors)

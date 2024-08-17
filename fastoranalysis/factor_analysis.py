@@ -257,9 +257,8 @@ class FactorAnalysis:
         """Fit the model with a single starting value."""
         def objective(uniquenesses):
             diag_unique = np.diag(uniquenesses)
-            _, s, Vt = linalg.svd(self.correlation_ - diag_unique)
-            loadings = Vt[:self.n_factors, :].T * np.sqrt(s[:self.n_factors])
-            return -np.sum(np.log(s[self.n_factors:])) + np.sum(np.log(uniquenesses))
+            loadings = self._compute_loadings(diag_unique, n_features)
+            return -np.sum(np.log(loadings['eigenvalues'][self.n_factors:])) + np.sum(np.log(uniquenesses))
 
         default_options = {'maxiter': 1000}
         options = {**default_options, **self.control}
@@ -268,6 +267,13 @@ class FactorAnalysis:
         return optimize.minimize(objective, start, method='L-BFGS-B', 
                                 bounds=[(0.005, 1)] * n_features, 
                                 options=options)
+
+    def _compute_loadings(self, diag_unique, n_features):
+        """Helper method to compute loadings and eigenvalues."""
+        corr_minus_diag = self.correlation_ - diag_unique
+        _, s, Vt = linalg.svd(corr_minus_diag)
+        loadings = Vt[:self.n_factors, :].T * np.sqrt(s[:self.n_factors])
+        return {'loadings': loadings, 'eigenvalues': s}
     
     def _cov2cor(self, cov):
         """Convert covariance matrix to correlation matrix."""

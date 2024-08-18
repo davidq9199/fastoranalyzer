@@ -149,6 +149,7 @@ class FactorAnalysis:
             If neither X nor covmat is provided, or if covmat is provided without n_obs.
             If the number of features is less than the number of factors.
             If unable to optimize from the given starting value(s).
+            
         """
         if X is None and covmat is None:
             raise ValueError("Either X or covmat must be provided")
@@ -209,6 +210,8 @@ class FactorAnalysis:
             if res.fun < best_objective:
                 best_res = res
                 best_objective = res.fun
+                if best_objective < self.control.get('tol', 1e-5):
+                    break
 
         if best_res is None:
             raise ValueError("Unable to optimize from the given starting value(s)")
@@ -262,7 +265,7 @@ class FactorAnalysis:
             s = linalg.eigvalsh(corr_minus_diag)[::-1]
             return -np.sum(np.log(s[self.n_factors:])) + np.sum(np.log(uniquenesses))
 
-        default_options = {'maxiter': 1000}
+        default_options = {'maxiter': 1000, 'ftol': 1e-6}
         options = {**default_options, **self.control}
         options.pop('nstart', None)
         
@@ -318,6 +321,7 @@ class FactorAnalysis:
         -------
         scores : ndarray of shape (n_samples, n_factors)
             Factor scores.
+
         """
         if self.loadings_ is None:
             raise ValueError("FactorAnalysis model is not fitted yet.")
@@ -334,7 +338,8 @@ class FactorAnalysis:
     def _regression_scores(self, X):
         """Compute regression scores."""
         X_centered = X - X.mean(axis=0)
-        return X_centered @ linalg.inv(self.correlation_) @ self.loadings_
+        inv_corr = linalg.inv(self.correlation_)
+        return X_centered @ inv_corr @ self.loadings_
 
     def _bartlett_scores(self, X):
         """Compute Bartlett's scores."""
@@ -407,6 +412,7 @@ class FactorAnalysis:
         ------
         ValueError
             If the FactorAnalysis model is not fitted yet.
+
         """
         if self.loadings_ is None:
             raise ValueError("FactorAnalysis model is not fitted yet.")

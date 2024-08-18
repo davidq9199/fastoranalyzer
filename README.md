@@ -60,11 +60,11 @@ Here are the results comparing the speed and memory performance of fastoranalysi
 
 ### Execution Time Comparison
 
-![Execution Time Comparison](\benchmarks\benchmark_time.png)
+![Execution Time Comparison](benchmarks/benchmark_time.png)
 
 ### Memory Usage Comparison
 
-![Memory Usage Comparison](\benchmarks\benchmark_memory.png)
+![Memory Usage Comparison](benchmarks/benchmark_memory.png)
 
 These benchmarks were conducted on datasets ranging from 1MB to 100MB, comparing FastorAnalysis ('fastor') with FactorAnalyzer ('factor') and R's factanal ('factanal'). The numerical values are available at /benchmarks/benchmark_results.csv. 
 

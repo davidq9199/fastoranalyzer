@@ -74,8 +74,6 @@ The Python implementations use significantly less memory, with fastor using the 
 
 ## Future Directions
 
-We're constantly working to improve FastorAnalysis. Here are some of the enhancements we're considering for future releases:
-
 1. **Input Flexibility**: R's factanal supports formula interfaces and precomputed covariance matricies. 
 2. **Additional Rotation Methods**: Expand the available rotation methods beyond varimax and promax.
 3. **Incremental Learning**: Develop an incremental learning approach for datasets that don't fit in memory.
